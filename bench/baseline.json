@@ -1,0 +1,84 @@
+{
+ "false_jumps_per_1000": {
+  "ramp": 0.0,
+  "sine": 0.0,
+  "white": 0.0,
+  "flicker": 0.0,
+  "heavy_tail": 3.8
+ },
+ "quantised_blip_flagged": {
+  "kind": "binary",
+  "notes_at_blip": [
+   "changed to 21.51 after 285 s",
+   "changed to 21.5 after 1 s"
+  ]
+ },
+ "period": {
+  "sine_rel_err": 0.0,
+  "sine_err_bar": null,
+  "sine_jitter_rel_err": 0.0,
+  "sine_jitter_err_bar": null
+ },
+ "band_exceedance": {
+  "nominal": 0.0027,
+  "seeds": 20,
+  "white": 0.0,
+  "white_worst": 0.0,
+  "heavy_tail": 0.00144,
+  "heavy_tail_worst": 0.0024,
+  "flicker": 0.02387,
+  "flicker_worst": 0.08996,
+  "flicker_10k": 0.01528,
+  "flicker_10k_worst": 0.07104
+ },
+ "detection": {
+  "mean_shift_delay": null,
+  "mean_shift_false_before": 0,
+  "ar1_mean_shift_delay": null,
+  "ar1_mean_shift_false_before": 0
+ },
+ "chatter": {
+  "activations": 1,
+  "chatter_events": 0,
+  "fleeting": 0
+ },
+ "hostile": {
+  "exceptions": 6,
+  "first": [
+   "ingest(9.0,None): TypeError",
+   "ingest(13.0,2.0): ValueError",
+   "ingest(29.0,0.0): ValueError"
+  ]
+ },
+ "white_is_unmodelled": false,
+ "fuzz": {
+  "exceptions": 1278,
+  "by_type": {
+   "TypeError": 213,
+   "ValueError": 1065
+  }
+ },
+ "S1_signature": {
+  "cases": 180,
+  "top1": 0.333,
+  "top3": 0.417,
+  "described_median_samples": 32.0
+ },
+ "perf": {
+  "samples": 6520,
+  "us_per_sample": 349.9,
+  "cpu_share_realtime": 0.0076
+ },
+ "capabilities": {
+  "alias_flag": null,
+  "tau_zeta": null,
+  "pit_calibration": null,
+  "timing_jitter_skew": null,
+  "stuck_clip_gap_flags": null,
+  "relations": null,
+  "thermal": null,
+  "privacy_class": null,
+  "trust": null
+ },
+ "_label": "slice-1 baseline"
+}

@@ -1,0 +1,23 @@
+{
+ "K-ant-alias": "VERIFIED",
+ "K-ant-sampling-thm": "VERIFIED",
+ "K-ant-resolution": "VERIFIED (page +1)",
+ "K-ant-quant-q2/12": "VERIFIED",
+ "K-ant-groupdelay": "VERIFIED",
+ "K-ant-wiener-khinchine": "VERIFIED",
+ "K-ant-psd-definition": "VERIFIED",
+ "K-gir-wold": "VERIFIED",
+ "K-gir-gabor-heisenberg": "VERIFIED",
+ "K-dor-S+C": "VERIFIED",
+ "K-dor-observer": "VERIFIED",
+ "K-dor-observability": "VERIFIED",
+ "K-dor-gain-phase-margin": "VERIFIED",
+ "K-liv-mutual-info": "VERIFIED (page +1)",
+ "K-liv-error-threshold": "VERIFIED (page +1)",
+ "K-liv-gold": "VERIFIED (page +1)",
+ "K-mli-FPE-BIC": "VERIFIED",
+ "K-mli-timesplit": "VERIFIED",
+ "K-art-grounding": "VERIFIED",
+ "K-art-posthoc-LLM": "VERIFIED",
+ "K-bird-transient": "VERIFIED"
+}
