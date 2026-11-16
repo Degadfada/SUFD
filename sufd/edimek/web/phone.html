@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SUFD surface</title>
+<style>
+:root{--bg:#101214;--card:#fff;--ink:#e8e8e3;--mut:#9aa09a;--ink-card:#1c1c1a;--rule:#2a2d30;--ok:#3ca56a;--warn:#e0701a;--bad:#d1242f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,sans-serif}
+header{position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--rule);padding:8px 16px}
+h1{font-size:16px;margin:0}
+#bar{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--mut);margin-top:2px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:5px}
+.dot.on{background:var(--ok)}
+main{padding:12px 16px 40px;max-width:760px;margin:0 auto}
+.card{background:var(--card);color:var(--ink-card);border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.card h3{margin:0;font-size:14px}.tag{font-size:11px;border:1px solid #bbb;border-radius:99px;padding:0 7px;margin-left:6px;color:#666;font-weight:400}
+.sum{font-size:12.5px;color:#555;margin:2px 0 4px}
+.card img{display:block;width:100%;height:auto}
+.why{font-size:12px;color:#666;margin-top:3px}.ptr{font-size:12.5px;color:#6d28d9;margin-top:4px}
+.q{color:#b00020;font-size:13px}
+button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--rule);background:#1d2023;color:var(--ink)}
+</style>
+</head>
+<body>
+<header>
+  <h1>SUFD <span id="state"><span class="dot" id="dot"></span>connecting</span></h1>
+  <div id="bar"><span id="sens">sensors: …</span><span id="lat">latency: …</span><span id="rate"></span></div>
+</header>
+<main>
+  <p id="ask" style="display:none"><button id="perm" type="button">Allow motion sensors</button></p>
+  <div id="panels"></div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var qs = location.search.replace(/^\?/, '');
+  var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  var url = proto + location.host + '/ws' + (qs ? '?' + qs : '');
+  var ws = null, nextId = 1, created = {}, createdKeys = [], outbox = [], lats = [], pingId = 0, pingAt = {};
+  var panelsEl = document.getElementById('panels');
+  var els = {}, geo = {};           // per-panel DOM and time geometry for pointing
+  var sensors = {};                 // name -> 'on' | reason
+
+  function setState(on, text) {
+    document.getElementById('dot').className = 'dot' + (on ? ' on' : '');
+    document.getElementById('state').lastChild.textContent = text;
+  }
+  function pct(a, p) { if (!a.length) return null; var s = a.slice().sort(function (x, y) { return x - y; });
+    return s[Math.min(s.length - 1, Math.floor(p * (s.length - 1) + 0.5))]; }
+
+  // ---- samples: every sample is stamped locally so sensor-to-pixel latency is measured on ONE clock
+  function sample(name, v, hint) {
+    var id = nextId++;
+    created[id] = performance.now(); createdKeys.push(id);
+    if (createdKeys.length > 4000) { delete created[createdKeys.shift()]; }
+    var s = { i: id, n: name, v: v };
+    if (hint) s.h = hint;
+    outbox.push(s);
+  }
+  setInterval(function () {
+    if (!ws || ws.readyState !== 1 || !outbox.length) return;
+    ws.send(JSON.stringify({ type: 'samples', batch: outbox.splice(0, 200) }));
+  }, 50);
+
+  // ---- real phone senses (each only if the browser exposes it)
+  function startMotion() {
+    var last = 0, got = false;
+    window.addEventListener('devicemotion', function (e) {
+      var a = e.accelerationIncludingGravity;
+      if (!a || a.x === null) return;
+      got = true; sensors.motion = 'on';
+      var now = performance.now();
+      if (now - last < 50) return;                       // <= 20 Hz
+      last = now;
+      sample('phone.accel', [a.x, a.y, a.z], 'm/s2');
+    });
+    setTimeout(function () { if (!got) { sensors.motion = 'no events (browsers often require HTTPS)'; showSens(); } }, 3000);
+  }
+  if (window.DeviceMotionEvent) {
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      document.getElementById('ask').style.display = 'block';
+      document.getElementById('perm').onclick = function () {
+        DeviceMotionEvent.requestPermission().then(function (r) { if (r === 'granted') startMotion(); });
+      };
+    } else { startMotion(); }
+  } else { sensors.motion = 'unsupported'; }
+  if (navigator.getBattery) {
+    navigator.getBattery().then(function (b) {
+      sensors.battery = 'on';
+      setInterval(function () { sample('phone.battery_pct', Math.round(b.level * 100), '%'); }, 10000);
+    });
+  } else { sensors.battery = 'unsupported'; }
+  if (navigator.connection && typeof navigator.connection.downlink === 'number') {
+    sensors.network = 'on';
+    setInterval(function () { sample('phone.net_downlink_mbps', navigator.connection.downlink, 'Mbps'); }, 5000);
+  }
+  function showSens() {
+    var t = []; for (var k in sensors) { t.push(k + ':' + (sensors[k] === 'on' ? 'on' : 'off')); }
+    document.getElementById('sens').textContent = 'sensors: rtt:on ' + t.join(' ');
+  }
+
+  // ---- link: round-trip time is a real signal everywhere
+  setInterval(function () {
+    if (!ws || ws.readyState !== 1) return;
+    var id = ++pingId; pingAt[id] = performance.now();
+    ws.send(JSON.stringify({ type: 'ping', id: id }));
+  }, 1000);
+
+  // ---- viewer
+  function panel(name, p) {
+    var e = els[name];
+    if (!e) {
+      var card = document.createElement('div'); card.className = 'card';
+      var h = document.createElement('h3'), sum = document.createElement('div'), img = document.createElement('img'),
+          why = document.createElement('div'), ptr = document.createElement('div');
+      sum.className = 'sum'; why.className = 'why'; ptr.className = 'ptr';
+      card.appendChild(h); card.appendChild(sum); card.appendChild(img); card.appendChild(why); card.appendChild(ptr);
+      img.addEventListener('click', function (ev) { pointAt(name, ev, img); });
+      e = els[name] = { card: card, h: h, sum: sum, img: img, why: why, ptr: ptr };
+      panelsEl.appendChild(card);
+      card.setAttribute('data-n', name);                              // keep panels sorted by name
+      Array.prototype.slice.call(panelsEl.children).sort(function (a, b) {
+        return a.getAttribute('data-n') < b.getAttribute('data-n') ? -1 : 1; })
+        .forEach(function (k) { panelsEl.appendChild(k); });
+    }
+    e.h.textContent = name;                                           // textContent only: names come from sensors
+    if (p.label) { var t = document.createElement('span'); t.className = 'tag'; t.textContent = String(p.label); e.h.appendChild(t); }
+    var st = document.createElement('span'); st.className = 'tag'; st.textContent = String(p.state); e.h.appendChild(st);
+    if (p.quarantined) {
+      e.sum.textContent = ''; e.img.removeAttribute('src');
+      e.why.className = 'q'; e.why.textContent = 'quarantined after repeated errors: ' + p.quarantined; return;
+    }
+    e.sum.textContent = p.summary || '';
+    // an SVG in an <img> cannot run script, so a hostile string inside a note can never execute
+    if (p.svg) e.img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(p.svg);
+    e.why.textContent = p.mark ? 'lens: ' + p.mark + ' — ' + (p.reason || '') : '';
+    e.ptr.textContent = p.pointer || '';
+    geo[name] = { t0: p.t0, t1: p.t1 };
+  }
+  function pointAt(name, ev, img) {
+    var g = geo[name]; if (!g || g.t1 <= g.t0) return;
+    var r = img.getBoundingClientRect(), vx = (ev.clientX - r.left) / r.width * 560;   // viewBox width 560
+    var ML = 46, MR = 14, f = (vx - ML) / (560 - ML - MR);
+    if (f < 0 || f > 1) return;
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'point', name: name, t: g.t0 + f * (g.t1 - g.t0) }));
+  }
+
+  function onPatch(m) {
+    var applied = performance.now();
+    for (var n in m.panels) { panel(n, m.panels[n]); }
+    for (var k in m.reflect) {
+      m.reflect[k].forEach(function (id) { if (created[id] !== undefined) { lats.push(applied - created[id]); } });
+    }
+    // the image has been handed to the browser; paint follows on the next frame
+    if (lats.length > 3000) lats.splice(0, lats.length - 3000);
+  }
+  setInterval(function () {
+    if (!lats.length) return;
+    var p50 = pct(lats, 0.5), p95 = pct(lats, 0.95), p99 = pct(lats, 0.99);
+    document.getElementById('lat').textContent = 'sensor→pixel p50 ' + Math.round(p50) + ' ms · p95 ' + Math.round(p95) + ' ms';
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'latency', n: lats.length, p50: p50, p95: p95, p99: p99 }));
+  }, 2000);
+
+  function connect() {
+    ws = new WebSocket(url);
+    ws.onopen = function () { setState(true, 'connected'); showSens(); };
+    ws.onclose = function () { setState(false, 'disconnected — retrying'); setTimeout(connect, 2000); };
+    ws.onerror = function () { try { ws.close(); } catch (e) {} };
+    ws.onmessage = function (ev) {
+      var m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (m.type === 'patch') onPatch(m);
+      else if (m.type === 'pong' && pingAt[m.id] !== undefined) {
+        var rtt = performance.now() - pingAt[m.id]; delete pingAt[m.id];
+        sample('phone.rtt_ms', Math.round(rtt * 10) / 10, 'ms');
+      } else if (m.type === 'hello') {
+        document.getElementById('rate').textContent = 'patches ≤ ' + m.patch_hz + ' Hz';
+      }
+    };
+  }
+  connect();
+})();
+</script>
+</body>
+</html>

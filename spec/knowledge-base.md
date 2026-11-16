@@ -241,6 +241,19 @@ Columns: ID · principle · source · tag · status · decision it drives (and w
 | K-ther-runaway | Thermal runaway is positive feedback: heat→leakage→current→heat. | Bird §12.9 p158 | B | agent-read |
 | K-noise-johnson | Johnson v²=4kTRΔf; shot i²=2qIΔf; flicker 1/f. | standard; Sadiku gives k | K | unverified |
 
+### 5.8 Lessons measured while building the M1 skeleton
+
+| ID | Finding | Evidence | Tag | Status | Drives |
+|---|---|---|---|---|---|
+| K-burst-resample | **Bursty arrivals can freeze the daemon.** A WebSocket batch lands within ~1 ms, so the median sample interval is microscopic; `_resample` then built a grid of hundreds of thousands of points and the autocorrelation search is O(n²). A flood test hung for >40 s. | `tests/test_hardening.py`; stack dump in `_refresh → _period_once` | S | verified by us | cap the resample grid at 2×WINDOW (no-op for regular data); time-sliced drain; quarantine signals whose ingest is slow [idea/envelope, kufre/runtime] |
+| K-arrival-time | Arrival time is a poor timestamp for batched sources: samples in one packet share a timestamp. | same hang; K-rfc3550-jitter | S/D | verified by us | node timestamps + skew correction in M2 [eno/timing] |
+| K-cascade-clocks | **Two cascaded 10 Hz clocks (render, then per-surface patch timer) gave sensor→pixel p50 134 ms / p95 209 ms — S2 failed.** One patch clock (render dirty focus panels at the tick, then wake all surfaces) gave **p50 66 / p95 102 / p99 112 ms** on loopback. | `bench/skeleton_soak.py` | S | verified by us | exactly one coalescing stage between sample and pixel [kufre/runtime, eno/transport] |
+| K-soak-memory | **Memory.** 30-min soak with default 4096-sample rings: +6.2% after a 5-min warm-up (fails the 5% bar), 28.8 → 34.0 MB. 20-min leak test with 128-sample rings (every buffer full within ~2 min), growth measured after 8 min: **0.0%** (plateau 32.6–33.6 MB). The plateau is close to the default-ring figure, so part of the first +6.2% is probably allocator/cache warm-up, not only buffer fill. Definitive default-ring check: the 24 h Pi soak (M7). | `bench/soak_m1_default_ring.json`, `bench/soak_m1.json` | S | verified by us (PC, loopback, simulated phone) | no leak once buffers are full; ring size is configurable (`--ring`); an unbounded-names path (new-signal cap 256) and the narration list were also bounded [kufre/runtime, kufre/mind] |
+| K-ws-interleave | RFC 6455 §5.4: control frames (ping) may arrive between the fragments of a message; the partial message must survive the interruption. A first implementation lost it. | `tests/test_wsproto.py` | K | verified by us (test) | fragment state kept on the reader [eno/wsproto] |
+| K-ingest-cost | The "O(1) per sample" claim is false for slice 1: `_refresh` costs O(n²/3) every 16 samples. Measured 74 µs (simple scalar) to ~350 µs (mixed demo load) per sample on this PC; a Pi 4 is plausibly 5–10× slower (projection, **[FP]**), i.e. a few hundred samples/s in total. | `bench/run.py` perf; flood drain timing | S (PC) / FP (Pi) | verified by us (PC) | M3: incremental estimators (recursive, not windowed re-computation); compute governor [idea, kufre/governor] |
+| K-ws-security | A browser can be driven by a hostile page to open a WebSocket to localhost or the LAN (cross-site hijacking); defences: pairing token (constant-time compare), Origin must equal Host, localhost bind by default, caps on frame/batch/name/rate/connections. | `tests/test_runtime.py` | K | verified by us (test) | transport posture [eno/transport] |
+| K-svg-in-img | An SVG shown through `<img>` cannot run script, so a hostile string inside a note can never execute; sensor-supplied names go to the DOM via `textContent` only. | `edimek/web/phone.html` | K | unverified | surface safety |
+
 ## 6. Physical-signatures table (the basis of the S1 evaluation set)
 
 Each row is a class in the frozen 180-case set (`bench/scenarios.py: signature()`: 12 classes × 5 seeds × 3 noise
@@ -299,6 +312,10 @@ reversible and rate-limited, veto window, flood guard) and a global kill switch.
    (K-three-rules).
 7. Process-plant alarm numbers are defaults to calibrate, not constants (K-siemens-table2).
 8. "ROC point nearest the origin" assumes equal miss and false-alarm costs (K-naghoosi-roc).
+
+9. **First measured S2 failed** (p95 209 ms against 150 ms) because of two cascaded 10 Hz clocks; fixed to p95 102 ms (K-cascade-clocks).
+10. **A burst of samples could hang the daemon** through unbounded resampling (K-burst-resample); the slice-1 estimator's
+    "O(1) per sample" claim was wrong (K-ingest-cost).
 
 ## 9. Reproduced claims (`python bench/claims.py`)
 

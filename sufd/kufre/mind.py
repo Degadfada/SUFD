@@ -6,6 +6,7 @@ the same EnoSignal -> IdeaEnvelope -> EdimekLens pipeline as any ESP32 sensor.
 from __future__ import annotations
 
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
@@ -67,14 +68,15 @@ class KufreMind:
         self.lenses: Dict[str, EdimekLens] = {}
         self.ledger: Dict[str, KufreSense] = {}
         self.attn: Dict[str, float] = {}
-        self.events: List[tuple] = []        # (t, text) — SUFD's own narration
+        self.events = deque(maxlen=2000)      # (t, text) — SUFD's own narration; bounded
+        self.ring_capacity = 4096             # samples kept per signal
         self.probe = probe or KufreProbe()
 
     # ----------------------------------------------------------- ingest
     def ingest(self, name: str, t: float, v, hint: Optional[str] = None) -> None:
         sig = self.signals.get(name)
         if sig is None:                                   # FIRST CONTACT
-            sig = self.signals[name] = EnoSignal(name, hint=hint)
+            sig = self.signals[name] = EnoSignal(name, hint=hint, capacity=self.ring_capacity)
             self.followers[name] = AkpanekaFollower(sig)
             rec = self.ledger[name] = KufreSense(name, first_seen=t)
             msg = "new signal noticed" + (f" (announced as {hint!r})" if hint else "")

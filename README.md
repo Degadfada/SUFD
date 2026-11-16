@@ -23,9 +23,17 @@ Zero dependencies: stdlib only, Python ≥ 3.9.
 
 ```bash
 python demo.py            # first contact with a simulated, unlabeled ESP32 heat sensor → out/demo.html
-python -m pytest -q       # 41 tests
+python -m pytest -q       # 77 tests
 python bench/run.py       # score the build against the numeric gates → bench/scoreboard.md
+
+python -m sufd serve --sim                  # the daemon + phone surface on http://127.0.0.1:8810 (prints the URL)
+python -m sufd serve --host 0.0.0.0         # reachable from your phone on the LAN (prints a URL with a pairing token)
+python bench/skeleton_soak.py --minutes 30  # separate client process, measured sensor→pixel latency, memory, errors
 ```
+
+The phone page streams the phone's own senses (link round-trip time always; motion, battery and network where the
+browser exposes them, which on plain `http://` LAN pages often means only the link signal) and shows SUFD's panels.
+Tap a chart to point at a moment; SUFD answers from the envelope.
 
 Open `out/demo.html`. At t=60 s an unlabeled ESP32 channel joins. By t≈92 s SUFD has described it. At t=100 s the human confirms "temperature sensor". At t=200 s a heater turns on and SUFD flags it before anyone asks. The page shows each moment, SUFD's narration, the human pointing at an event, SUFD's own vitals rendered by the same pipeline, and where the human's attention budget goes.
 

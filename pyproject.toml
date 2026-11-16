@@ -9,6 +9,12 @@ description = "SUFD: reads any signal, learns its envelope, and generates the vi
 readme = "README.md"
 requires-python = ">=3.9"
 
+[project.scripts]
+sufd = "sufd.__main__:main"
+
+[tool.setuptools.package-data]
+"sufd.edimek" = ["web/*.html"]
+
 [tool.setuptools.packages.find]
 include = ["sufd*"]
 

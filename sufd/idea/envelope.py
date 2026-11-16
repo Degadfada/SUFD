@@ -25,10 +25,18 @@ def _quantile(sorted_vals: Sequence[float], q: float) -> float:
     return sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo]) * (i - lo)
 
 
-def _resample(xs: Sequence[float], ys: Sequence[float], dt: float) -> List[float]:
-    """Linear interpolation onto a uniform grid of spacing dt (sources jitter)."""
+def _resample(xs: Sequence[float], ys: Sequence[float], dt: float, max_points: int = 2 * WINDOW):
+    """Linear interpolation onto a uniform grid of spacing dt (sources jitter). Returns (grid, dt_used).
+
+    The grid is capped at max_points. Without the cap, bursty arrivals (a WebSocket batch lands within a
+    millisecond) make the median interval microscopic and the grid hundreds of thousands of points long, and the
+    autocorrelation that follows is O(n^2): a sender could freeze the daemon. For regular data the cap is never
+    reached and dt_used == dt, so behaviour is unchanged."""
     if not dt or dt != dt or len(xs) < 2:
-        return list(ys)
+        return list(ys), dt
+    span = xs[-1] - xs[0]
+    if span / dt > max_points:
+        dt = span / max_points
     out, j, x = [], 0, xs[0]
     while x <= xs[-1] + 1e-12:
         while j < len(xs) - 2 and xs[j + 1] < x:
@@ -37,7 +45,7 @@ def _resample(xs: Sequence[float], ys: Sequence[float], dt: float) -> List[float
         f = 0.0 if x1 == x0 else min(1.0, max(0.0, (x - x0) / (x1 - x0)))
         out.append(ys[j] + (ys[j + 1] - ys[j]) * f)
         x += dt
-    return out
+    return out, dt
 
 
 def _median(vals: Sequence[float]) -> float:
@@ -221,13 +229,13 @@ class IdeaEnvelope:
         sxx_a = sum((x - mx_a) ** 2 for x in xs_all)
         sl_a = sum((x - mx_a) * (y - my_all) for x, y in zip(xs_all, ys)) / sxx_a if sxx_a else 0.0
         resid = [y - (my_all + sl_a * (x - mx_a)) for x, y in zip(xs_all, ys)]
-        resid = _resample(xs_all, resid, self.dt)     # autocorrelation needs a uniform grid
+        resid, dt_eff = _resample(xs_all, resid, self.dt)     # autocorrelation needs a uniform grid
         n_r = len(resid)
         rvar = sum(r * r for r in resid)
         total_sd = math.sqrt(cvar / n)
         found = (None, 0.0)
         if math.sqrt(rvar / n_r) >= 0.1 * total_sd:     # else it is rounding, not a cycle
-            found = self._period_once(resid, rvar)
+            found = self._period_once(resid, rvar, dt_eff)
         # sticky: a period must be seen twice to be believed, and survives one miss
         if found[0]:
             self._hits, self._last_period = min(self._hits + 1, 3), found
@@ -235,9 +243,9 @@ class IdeaEnvelope:
             self._hits = max(self._hits - 1, 0)
         self.period, self.period_strength = self._last_period if self._hits >= 2 else (None, 0.0)
 
-    def _period_once(self, resid: List[float], var: float):
+    def _period_once(self, resid: List[float], var: float, dt: float):
         n = len(resid)
-        if n < 24 or var <= 0 or not self.dt or math.isnan(self.dt):
+        if n < 24 or var <= 0 or not dt or math.isnan(dt):
             return (None, 0.0)
         acf = []
         for lag in range(1, n // 3):
@@ -251,7 +259,7 @@ class IdeaEnvelope:
             if acf[i] >= acf[i - 1] and acf[i] >= acf[i + 1] and acf[i] > best:
                 best, best_i = acf[i], i
         if best_i is not None and best >= 0.5:
-            return ((best_i + 1) * self.dt, best)
+            return ((best_i + 1) * dt, best)
         return (None, 0.0)
 
     # ------------------------------------------------------------ meaning
