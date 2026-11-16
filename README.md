@@ -23,7 +23,7 @@ Zero dependencies: stdlib only, Python ≥ 3.9.
 
 ```bash
 python demo.py            # first contact with a simulated, unlabeled ESP32 heat sensor → out/demo.html
-python -m pytest -q       # 34 tests
+python -m pytest -q       # 41 tests
 python bench/run.py       # score the build against the numeric gates → bench/scoreboard.md
 ```
 
@@ -33,11 +33,11 @@ Open `out/demo.html`. At t=60 s an unlabeled ESP32 channel joins. By t≈92 s SU
 
 | Noun | What it is | Code |
 |---|---|---|
-| **Signal** | A named source of `(t, value)` samples with unknown meaning | [signal.py](sufd/signal.py) |
-| **Envelope** | What SUFD has *learned*: kind, range, rate, noise, drift, period, surprise. It is online, inspectable and always updating | [envelope.py](sufd/envelope.py) |
-| **Lens** | A visual encoding chosen *from the envelope*: mark, scale, window, decimation | [lens.py](sufd/lens.py), [render.py](sufd/render.py) |
-| **Follow** | Shared attention: SUFD's "now", its notes with reasons, and the human's pointer | [follow.py](sufd/follow.py) |
-| **Self** | SUFD's own metrics fed through the same pipeline, plus the ledger of every sense it has met | [selfmodel.py](sufd/selfmodel.py) |
+| **Signal** | A named source of `(t, value)` samples with unknown meaning | [eno/signal.py](sufd/eno/signal.py) |
+| **Envelope** | What SUFD has *learned*: kind, range, rate, noise, drift, period, surprise. It is online, inspectable and always updating | [idea/envelope.py](sufd/idea/envelope.py) |
+| **Lens** | A visual encoding chosen *from the envelope*: mark, scale, window, decimation | [edimek/lens.py](sufd/edimek/lens.py), [edimek/render.py](sufd/edimek/render.py) |
+| **Follow** | Shared attention: SUFD's "now", its notes with reasons, and the human's pointer | [akpaneka/notes.py](sufd/akpaneka/notes.py), [edimek/follow.py](sufd/edimek/follow.py) |
+| **Self** | SUFD's own metrics fed through the same pipeline, plus the ledger of every sense it has met | [kufre/mind.py](sufd/kufre/mind.py) |
 
 SUFD has no separate self-monitoring subsystem. Its CPU load and a new ESP32 heat sensor go through identical code.
 
@@ -54,7 +54,10 @@ Full argument: [spec/first-principles.md](spec/first-principles.md).
 ## Layout
 
 ```
-sufd/        the package: signal, envelope, lens, render, follow, selfmodel, sim
+sufd/        the package, in six keyword packages (glossary.py; spec/knowledge-base.md §1):
+               eno intake · emem baseline and noise · idea understanding
+               akpaneka judgement and action · kufre self · edimek surface
+               (old slice-1 import paths remain as compatibility shims until the end of M4)
 spec/        first-principles.md (the design) · knowledge-base.md (sourced claims)
 bench/       scenario corpus, numeric gates, scoreboard, citation + claim checks, host recorder
 tests/       unit and traceability tests

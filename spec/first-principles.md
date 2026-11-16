@@ -25,11 +25,11 @@ signal is**, and **generates the way for a human to follow it**. No app has to e
 
 | Noun | Meaning | Built in |
 |---|---|---|
-| **Signal** | A named source of `(t, value)` samples, with unknown semantics. | `signal.py` |
-| **Envelope** | What SUFD has *learned* about a signal: kind, range, rate, noise, drift, period, surprise. The minimum description needed to *receive* it and *render* it. Online, always updating. | `envelope.py` |
-| **Lens** | A visual encoding chosen *from the envelope* (not from the app): mark, scale, window, decimation. | `lens.py`, `render.py` |
-| **Follow** | The shared attention between SUFD and the human on one signal: SUFD's "now" cursor, SUFD's notes (what it noticed and why), and the human's pointer. | `follow.py` |
-| **Self** | SUFD's own signals (loop lag, CPU, signal count) fed through the *same* pipeline, plus the **sense ledger** of every sense it has met. | `selfmodel.py` |
+| **Signal** | A named source of `(t, value)` samples, with unknown semantics. | `eno/signal.py` |
+| **Envelope** | What SUFD has *learned* about a signal: kind, range, rate, noise, drift, period, surprise. The minimum description needed to *receive* it and *render* it. Online, always updating. | `idea/envelope.py` |
+| **Lens** | A visual encoding chosen *from the envelope* (not from the app): mark, scale, window, decimation. | `edimek/lens.py`, `edimek/render.py` |
+| **Follow** | The shared attention between SUFD and the human on one signal: SUFD's "now" cursor, SUFD's notes (what it noticed and why), and the human's pointer. | `akpaneka/notes.py` + `edimek/follow.py` |
+| **Self** | SUFD's own signals (loop lag, CPU, signal count) fed through the *same* pipeline, plus the **sense ledger** of every sense it has met. | `kufre/mind.py` |
 
 The reflexive trick: SUFD does not need a separate "self-monitoring" subsystem.
 Its own metrics are signals; the same envelope→lens pipeline reads them. A new

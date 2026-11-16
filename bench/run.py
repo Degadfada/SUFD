@@ -338,8 +338,20 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--baseline", action="store_true", help="record bench/baseline.json")
     ap.add_argument("--label", default="current")
+    ap.add_argument("--same-as-baseline", action="store_true",
+                    help="exit 1 unless every metric except timing equals bench/baseline.json (rename/refactor gate)")
     a = ap.parse_args()
     res = run_all()
+    if a.same_as_baseline:
+        base = json.loads((HERE / "baseline.json").read_text(encoding="utf-8"))
+        cur = json.loads(json.dumps(res, default=str))
+        diffs = [k for k in cur if not k.startswith("_") and k != "perf" and cur[k] != base.get(k)]
+        for k in diffs:
+            print(f"DIFF {k}:")
+            print(f"  baseline {base.get(k)}")
+            print(f"  current  {cur[k]}")
+        print("IDENTICAL to baseline (timing excluded)" if not diffs else f"{len(diffs)} metric(s) differ")
+        return 1 if diffs else 0
     res["_label"] = "slice-1 baseline" if a.baseline else a.label
     rows = judge(res)
     base_p = HERE / "baseline.json"

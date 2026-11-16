@@ -29,8 +29,7 @@ and Dorf PDF = printed + 26; Giron-Sierra ≈ +34; Living Computers + 15; ML-Ind
 
 ## 1. Glossary — keyword packages (defined by the module they name)
 
-The user supplied six keywords and asked for them to be assigned to modules at random, each defined by its module.
-The words carry no built-in meaning; this table is the source of truth. Reassigning a keyword is a one-line rename.
+
 
 | Package | Plain-English role | Holds |
 |---|---|---|
