@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sufd"
+version = "0.0.1"
+description = "SUFD: reads any signal, learns its envelope, and generates the visual a human can follow it with. Zero dependencies."
+readme = "README.md"
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+include = ["sufd*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
