@@ -351,7 +351,9 @@ From `bench/run.py --baseline`: **7 of 22 gates pass** on the 20+ scenarios and 
 
 ## 11. Citation verification log
 
-`bench/verify_citations.py` extracts the printed page ±1 and checks key terms (not equations).
+`bench/verify_citations.py` extracts the printed page ±1 and checks key terms (not equations). To re-run it, set
+`SUFD_LECTURE_NOTES` and `SUFD_DOWNLOADS` to the folders that hold your copies of the PDFs (they are copyrighted and
+not in this repository); it refuses to overwrite the recorded log from a partial run.
 **21 of 21 [B] items that drive a design decision verified** — 17 on the cited page, 4 one page off (K-ant-resolution,
 and Living Computers K-liv-mutual-info, K-liv-error-threshold, K-liv-gold, whose offset is +16 not +15). Details and
 the machine-readable log: `bench/citations_log.json`. `tests/test_traceability.py` enforces that every logged
